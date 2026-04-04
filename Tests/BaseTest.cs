@@ -1,3 +1,4 @@
+using NUnit.Framework;
 using Microsoft.Playwright.NUnit;
 using Quvantic.PlaywrightTests.Pages;
 using Quvantic.PlaywrightTests.Utils;

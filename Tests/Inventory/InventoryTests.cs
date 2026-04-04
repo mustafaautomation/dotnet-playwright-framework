@@ -1,3 +1,4 @@
+using NUnit.Framework;
 using FluentAssertions;
 
 namespace Quvantic.PlaywrightTests.Tests.Inventory;

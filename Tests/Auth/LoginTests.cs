@@ -1,3 +1,4 @@
+using NUnit.Framework;
 using FluentAssertions;
 using Quvantic.PlaywrightTests.Utils;
 
