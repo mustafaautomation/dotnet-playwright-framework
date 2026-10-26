@@ -1,7 +1,7 @@
 # .NET Playwright Test Framework
 
 [![CI](https://github.com/mustafaautomation/dotnet-playwright-framework/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/mustafaautomation/dotnet-playwright-framework/actions/workflows/ci.yml)
-[![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4.svg?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com)
+[![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4.svg?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com)
 [![Playwright](https://img.shields.io/badge/Playwright-1.64-2EAD33.svg)](https://playwright.dev/dotnet)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -84,11 +84,11 @@ flowchart TB
 
 ## Running locally
 
-Requirements: .NET 8 SDK and PowerShell (`pwsh`), which is needed for the Playwright install script.
+Requirements: .NET 10 SDK and PowerShell (`pwsh`), which is needed for the Playwright install script.
 
 ```bash
 dotnet build
-pwsh bin/Debug/net8.0/playwright.ps1 install chromium   # add --with-deps on Linux
+pwsh bin/Debug/net10.0/playwright.ps1 install chromium   # add --with-deps on Linux
 
 dotnet test                                    # everything
 dotnet test --filter "Category=Api"            # API only, no browser needed
@@ -98,7 +98,7 @@ dotnet test --filter "Category=UI&Category=Regression"
 ```
 
 Results go to `TestResults/`: `results.trx` and a standalone `report.html`.
-When a UI test fails, a full-page screenshot and a Playwright trace are attached to that test's result. Open the trace with `pwsh bin/Debug/net8.0/playwright.ps1 show-trace <file>.trace.zip` or at [trace.playwright.dev](https://trace.playwright.dev).
+When a UI test fails, a full-page screenshot and a Playwright trace are attached to that test's result. Open the trace with `pwsh bin/Debug/net10.0/playwright.ps1 show-trace <file>.trace.zip` or at [trace.playwright.dev](https://trace.playwright.dev).
 
 ### Configuration
 
@@ -173,7 +173,7 @@ Each job caches NuGet packages and writes a test summary to the run page using [
 
 ## Tech stack
 
-Playwright for .NET 1.64 · NUnit 4 · FluentAssertions 7 · Microsoft.Extensions.Configuration · GitHub Actions · Docker
+.NET 10 (LTS) · Playwright for .NET 1.64 · NUnit 5 · FluentAssertions 7 (kept on 7.x because 8.x needs a paid licence for commercial use) · Microsoft.Extensions.Configuration · GitHub Actions · Docker
 
 ## License
 

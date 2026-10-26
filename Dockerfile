@@ -3,10 +3,10 @@
 # their OS dependencies.
 FROM mcr.microsoft.com/playwright/dotnet:v1.64.1-noble
 
-# The image ships a newer .NET SDK (which builds net8.0 fine); add the .NET 8 runtime so
-# the tests run on the framework the project targets.
+# Make sure the .NET 10 runtime the project targets is present (the install script
+# skips it if the image already has it).
 RUN curl -sSL https://dot.net/v1/dotnet-install.sh \
-      | bash -s -- --runtime dotnet --channel 8.0 --install-dir /usr/share/dotnet
+      | bash -s -- --runtime dotnet --channel 10.0 --install-dir /usr/share/dotnet
 
 ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     DOTNET_NOLOGO=1
