@@ -15,3 +15,9 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+
+  # Keeps the Playwright Docker image tag in step with the NuGet package.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
