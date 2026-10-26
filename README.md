@@ -1,158 +1,180 @@
-# .NET Playwright Framework
+# .NET Playwright Test Framework
 
-[![E2E Tests](https://github.com/mustafaautomation/dotnet-playwright-framework/actions/workflows/e2e-tests.yml/badge.svg)](https://github.com/mustafaautomation/dotnet-playwright-framework/actions)
+[![CI](https://github.com/mustafaautomation/dotnet-playwright-framework/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/mustafaautomation/dotnet-playwright-framework/actions/workflows/ci.yml)
+[![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4.svg?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com)
+[![Playwright](https://img.shields.io/badge/Playwright-1.64-2EAD33.svg)](https://playwright.dev/dotnet)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4.svg?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com)
-[![Playwright](https://img.shields.io/badge/Playwright-1.49-2EAD33.svg)](https://playwright.dev/dotnet)
 
-Enterprise E2E testing framework built with Playwright for .NET and NUnit. Page Object Model architecture, parallel execution, FluentAssertions, and CI/CD integration.
+A test automation framework in C# with UI tests and API tests in one project:
 
----
+- **UI tests** run against [saucedemo.com](https://www.saucedemo.com) and use the Page Object Model with Playwright's auto-retrying assertions.
+- **API tests** run against [restful-booker](https://restful-booker.herokuapp.com/apidoc/index.html) through Playwright's `IAPIRequestContext`, with typed models that also check the response shape.
 
-## Test Coverage
+Both layers share the same configuration, test categories, parallel runs, reporting and CI pipeline.
 
-| Suite | Tests | Category |
-|-------|-------|----------|
-| Login | 5 | smoke |
-| Inventory | 5 | regression |
-| Checkout | 3 | regression |
-| **Total** | **13** | |
-
----
-
-## Quick Start
-
-```bash
-git clone https://github.com/mustafaautomation/dotnet-playwright-framework.git
-cd dotnet-playwright-framework
-
-# Restore and build
-dotnet restore
-dotnet build
-
-# Install browsers
-pwsh bin/Debug/net8.0/playwright.ps1 install --with-deps chromium
-
-# Run all tests
-dotnet test --settings PlaywrightTests.runsettings
-
-# Run smoke tests only
-dotnet test --filter "Category=smoke"
-
-# Run regression tests
-dotnet test --filter "Category=regression"
-```
+| Suite | Fixture | Tests | Covers |
+|-------|---------|------:|--------|
+| UI | `LoginTests` | 5 | valid login, locked-out / empty / wrong credentials (data-driven) |
+| UI | `InventoryTests` | 7 | product grid, cart badge, sorting by name and price (order verified) |
+| UI | `CartTests` | 4 | cart contents, empty cart, continue shopping, checkout entry |
+| UI | `CheckoutTests` | 4 | end-to-end order with total = subtotal + tax, field validation |
+| API | `AuthTests` | 2 | token creation, bad credentials |
+| API | `BookingCrudTests` | 6 | create, read (contract), search, update, partial update, delete |
+| API | `BookingNegativeTests` | 4 | unknown id, missing/invalid token, invalid payload |
 
 ---
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    subgraph Tests
+        UI["Tests/UI/*<br/>Login · Inventory · Cart · Checkout"]
+        API["Tests/Api/*<br/>Auth · Booking CRUD · Negative"]
+    end
+
+    subgraph Fixtures
+        UIBase["UiTestBase<br/>browser per fixture · context per test<br/>trace + screenshot on failure"]
+        APIBase["ApiTestBase<br/>IAPIRequestContext per fixture<br/>test-data cleanup"]
+    end
+
+    subgraph Layer["Abstractions"]
+        Pages["Pages/*<br/>Page Objects"]
+        Client["Api/Clients/BookingClient"]
+        Models["Api/Models<br/>typed records = contract"]
+    end
+
+    Config["Config/TestSettings<br/>appsettings.json → appsettings.{env}.json → TEST_* env vars"]
+
+    UI --> UIBase --> Pages
+    API --> APIBase --> Client --> Models
+    UIBase --> Config
+    APIBase --> Config
+    Pages --> PW["Microsoft.Playwright"]
+    Client --> PW
+    PW --> SUT1[(saucedemo.com)]
+    PW --> SUT2[(restful-booker API)]
 ```
-┌─────────────────────────────────────────┐
-│           Test Classes                   │
-│  LoginTests │ InventoryTests │ ...       │
-├─────────────────────────────────────────┤
-│           BaseTest                       │
-│  Page init │ LoginAsStandardUser()       │
-├─────────────────────────────────────────┤
-│           Page Objects                   │
-│  LoginPage │ InventoryPage │ CartPage    │
-│  CheckoutPage │ BasePage                 │
-├─────────────────────────────────────────┤
-│           Utils                          │
-│  TestConfig (env-based)                  │
-├─────────────────────────────────────────┤
-│  Playwright .NET │ NUnit │ FluentAssert  │
-└─────────────────────────────────────────┘
+
+## Folder layout
+
+```
+├── Api/
+│   ├── Clients/BookingClient.cs   # one method per endpoint, returns IAPIResponse
+│   ├── Models/                    # Booking, Auth records (also the response contract)
+│   ├── ApiJson.cs                 # strict System.Text.Json options + ReadJsonAsync<T>()
+│   └── BookingFactory.cs          # unique test data per test
+├── Config/TestSettings.cs         # typed settings bound from configuration
+├── Fixtures/
+│   ├── UiTestBase.cs              # browser/context lifecycle, tracing, screenshots
+│   └── ApiTestBase.cs             # request context, status helper, cleanup
+├── Pages/                         # Login, Inventory, Cart, Checkout page objects
+├── Tests/
+│   ├── UI/{Auth,Cart,Checkout,Inventory}/
+│   └── Api/Booking/
+├── Utils/TestCategories.cs        # Smoke · Regression · UI · Api
+├── AssemblyInfo.cs                # fixture-level parallelism
+├── appsettings.json               # default settings
+├── PlaywrightTests.runsettings    # worker count, trx + html loggers
+├── Dockerfile
+└── .github/workflows/ci.yml
 ```
 
 ---
 
-## Page Object Model
+## Running locally
 
-Each page encapsulates selectors and actions:
+Requirements: .NET 8 SDK and PowerShell (`pwsh`), which is needed for the Playwright install script.
 
-```csharp
-public class LoginPage : BasePage
-{
-    private ILocator UsernameInput => Page.Locator("[data-test='username']");
+```bash
+dotnet build
+pwsh bin/Debug/net8.0/playwright.ps1 install chromium   # add --with-deps on Linux
 
-    public async Task Login(string username, string password)
-    {
-        await UsernameInput.FillAsync(username);
-        await PasswordInput.FillAsync(password);
-        await LoginButton.ClickAsync();
-    }
-}
+dotnet test                                    # everything
+dotnet test --filter "Category=Api"            # API only, no browser needed
+dotnet test --filter "Category=UI"             # UI only
+dotnet test --filter "Category=Smoke"          # smoke across both layers
+dotnet test --filter "Category=UI&Category=Regression"
 ```
 
----
+Results go to `TestResults/`: `results.trx` and a standalone `report.html`.
+When a UI test fails, a full-page screenshot and a Playwright trace are attached to that test's result. Open the trace with `pwsh bin/Debug/net8.0/playwright.ps1 show-trace <file>.trace.zip` or at [trace.playwright.dev](https://trace.playwright.dev).
 
-## Parallel Execution
+### Configuration
 
-Tests run in parallel by default (4 workers). Configure in `PlaywrightTests.runsettings`:
+Settings are read from `appsettings.json`, then from `appsettings.{TEST_ENVIRONMENT}.json` if that file exists, and then from environment variables with the `TEST_` prefix. Use `__` to reach a nested key:
 
-```xml
-<NUnit>
-  <NumberOfTestWorkers>4</NumberOfTestWorkers>
-</NUnit>
+| Setting | Default | Override example |
+|---------|---------|------------------|
+| `Ui:BaseUrl` | `https://www.saucedemo.com` | `TEST_Ui__BaseUrl=https://staging.example.com` |
+| `Ui:Browser` | `chromium` | `TEST_Ui__Browser=firefox` (or `webkit`) |
+| `Ui:Headless` | `true` | `TEST_Ui__Headless=false` |
+| `Ui:TimeoutMs` | `10000` | `TEST_Ui__TimeoutMs=20000` |
+| `Api:BaseUrl` | `https://restful-booker.herokuapp.com` | `TEST_Api__BaseUrl=...` |
+| `Diagnostics:Tracing` | `RetainOnFailure` | `TEST_Diagnostics__Tracing=On` / `Off` |
+| `Diagnostics:ScreenshotOnFailure` | `true` | `TEST_Diagnostics__ScreenshotOnFailure=false` |
+
+The default credentials are the public demo accounts that both sites publish. Real credentials would come from environment variables or CI secrets instead.
+
+Parallelism: fixtures run in parallel with 4 workers by default (`PlaywrightTests.runsettings`). To change the worker count for one run:
+
+```bash
+dotnet test -- NUnit.NumberOfTestWorkers=2
 ```
 
-Each test class gets `[Parallelizable(ParallelScope.Self)]` for thread safety.
+### Docker
 
----
-
-## Docker
+The image is based on `mcr.microsoft.com/playwright/dotnet`, pinned to the same version as the NuGet package, so the browsers and OS dependencies are already installed.
 
 ```bash
 docker build -t pw-dotnet .
-docker run --rm pw-dotnet
-docker run --rm pw-dotnet --filter "Category=smoke"
+docker run --rm pw-dotnet                                   # full suite
+docker run --rm pw-dotnet --filter "Category=Smoke"         # args are passed to dotnet test
+docker run --rm -e TEST_Ui__Browser=firefox \
+  -v "$PWD/TestResults:/src/TestResults" pw-dotnet          # keep the reports
 ```
+
+### CI
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request to `main`, and can also be started by hand (`workflow_dispatch`):
+
+| Job | What it runs |
+|-----|--------------|
+| **API tests** | `Category=Api` |
+| **UI tests (chromium, full)** | every `Category=UI` test |
+| **UI tests (firefox, smoke)** | `Category=UI&Category=Smoke` (cross-browser check) |
+| **Docker image (smoke)** | builds the image and runs `Category=Smoke` inside it |
+
+Each job caches NuGet packages and writes a test summary to the run page using [GitHubActionsTestLogger](https://github.com/Tyrrrz/GitHubActionsTestLogger). Failures also show up as annotations. The `TestResults/` folder (trx, HTML report, failure screenshots and traces) is uploaded as an artifact.
 
 ---
 
-## Project Structure
+## Design decisions
 
-```
-dotnet-playwright-framework/
-├── Pages/
-│   ├── BasePage.cs              # Base with screenshot, URL helpers
-│   ├── LoginPage.cs             # Login form interactions
-│   ├── InventoryPage.cs         # Product list, cart, sorting
-│   ├── CartPage.cs              # Cart operations
-│   └── CheckoutPage.cs          # Checkout form and validation
-├── Tests/
-│   ├── BaseTest.cs              # NUnit setup, page initialization
-│   ├── Auth/LoginTests.cs       # 5 login scenarios
-│   ├── Inventory/InventoryTests.cs  # 5 inventory scenarios
-│   └── Checkout/CheckoutTests.cs    # 3 checkout scenarios
-├── Utils/
-│   └── TestConfig.cs            # Environment-based configuration
-├── PlaywrightTests.csproj       # .NET 8 project file
-├── PlaywrightTests.runsettings  # Playwright + NUnit config
-├── Dockerfile
-└── .github/workflows/e2e-tests.yml
-```
+**Page Object Model, no assertions inside pages.** Page objects expose user actions (`LoginAsync`, `AddToCartAsync`) and the few locators that tests check (`ErrorMessage`, `CartBadge`). Tests assert with `Expect(locator)`. Those assertions retry until the timeout, so the tests have no sleeps or manual waits.
+
+**Our own base fixture instead of `PageTest`.** `UiTestBase` launches one browser per fixture and creates a new `BrowserContext` for each test, so cookies and storage never leak between tests. Owning this lifecycle lets `TestSettings` choose the browser and headless mode, and lets us stop tracing with or without saving the file depending on the test outcome.
+
+**API layer on Playwright's `IAPIRequestContext`.** This avoids a second HTTP stack. `BookingClient` returns the raw `IAPIResponse`, so a test can check a 403 or 404 as easily as a 200. Deserialization happens in the test with `ReadJsonAsync<T>()`.
+
+**Typed models used as a contract check.** The records mark fields as `required`, and the serializer runs with `UnmappedMemberHandling.Disallow`. A missing field or an unexpected new field therefore fails with a clear message that includes the response body. We get most of the value of a JSON schema without maintaining a separate schema file.
+
+**Self-contained test data.** restful-booker is a shared public sandbox that resets its data from time to time. Each API test creates its own booking with unique values from `BookingFactory`, never relies on existing data, and the fixture deletes what it created.
+
+**Parallelism at fixture level.** Fixtures run in parallel, and tests inside a fixture run one after another. This keeps fixture state safe (one browser or request context per fixture) and still uses every worker. Test isolation comes from the context per test, not from execution order.
+
+**Diagnostics only on failure by default.** Traces are recorded for every test but saved only when the test fails (`RetainOnFailure`), together with a screenshot. Passing runs stay fast and small, and a failing CI run gives you a trace you can replay step by step.
+
+**Categories describe both layer and depth.** `UI`/`Api` are inherited from the base fixtures; `Smoke`/`Regression` are set on each test. CI combines them, for example running the full UI suite on Chromium but only the smoke tests on Firefox.
+
+**Known API quirks are written down in the tests.** restful-booker returns HTTP 200 for bad credentials, 201 for a successful delete, and 500 for an invalid payload. The tests assert this actual behavior and say so in a comment, rather than asserting what a "correct" API would return.
 
 ---
 
-## Stack
+## Tech stack
 
-| Tool | Purpose |
-|------|---------|
-| Playwright .NET 1.49 | Browser automation |
-| NUnit 4.3 | Test runner with parallel support |
-| FluentAssertions 7.0 | Readable C# assertions |
-| .NET 8 | Runtime |
-| Docker | Containerized execution |
-
----
+Playwright for .NET 1.64 · NUnit 4 · FluentAssertions 7 · Microsoft.Extensions.Configuration · GitHub Actions · Docker
 
 ## License
 
-MIT
-
----
-
-Built by [Quvantic](https://quvantic.com)
+[MIT](LICENSE)
