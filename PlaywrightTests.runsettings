@@ -1,12 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RunSettings>
-  <Playwright>
-    <BrowserName>chromium</BrowserName>
-    <LaunchOptions>
-      <Headless>true</Headless>
-    </LaunchOptions>
-  </Playwright>
+  <RunConfiguration>
+    <ResultsDirectory>./TestResults</ResultsDirectory>
+  </RunConfiguration>
+  <!-- Fixtures run in parallel (see AssemblyInfo.cs). Override the worker count per run
+       by appending NUnit.NumberOfTestWorkers=2 after the double-dash on the dotnet test command line. -->
   <NUnit>
     <NumberOfTestWorkers>4</NumberOfTestWorkers>
   </NUnit>
+  <LoggerRunSettings>
+    <Loggers>
+      <Logger friendlyName="trx" enabled="True">
+        <Configuration>
+          <LogFileName>results.trx</LogFileName>
+        </Configuration>
+      </Logger>
+      <Logger friendlyName="html" enabled="True">
+        <Configuration>
+          <LogFileName>report.html</LogFileName>
+        </Configuration>
+      </Logger>
+    </Loggers>
+  </LoggerRunSettings>
 </RunSettings>

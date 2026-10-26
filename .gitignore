@@ -1,7 +1,8 @@
 bin/
 obj/
 TestResults/
-screenshots/
+playwright-artifacts/
 *.user
 .vs/
+.idea/
 .DS_Store
