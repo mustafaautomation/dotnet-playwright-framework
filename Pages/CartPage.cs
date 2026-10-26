@@ -2,34 +2,15 @@ using Microsoft.Playwright;
 
 namespace Quvantic.PlaywrightTests.Pages;
 
-public class CartPage : BasePage
+public sealed class CartPage(IPage page) : BasePage(page)
 {
-    private ILocator CartItems => Page.Locator(".cart_item");
-    private ILocator CheckoutButton => Page.Locator("[data-test='checkout']");
-    private ILocator ContinueShopping => Page.Locator("[data-test='continue-shopping']");
+    private ILocator CheckoutButton => ByTestId("checkout");
+    private ILocator ContinueShoppingButton => ByTestId("continue-shopping");
 
-    public CartPage(IPage page) : base(page) { }
+    public ILocator Items => Page.Locator(".cart_item");
+    public ILocator ItemNames => Page.Locator(".cart_item .inventory_item_name");
 
-    public async Task<int> GetItemCount()
-    {
-        return await CartItems.CountAsync();
-    }
+    public async Task CheckoutAsync() => await CheckoutButton.ClickAsync();
 
-    public async Task<bool> ContainsProduct(string productName)
-    {
-        var text = await Page.Locator(".cart_list").TextContentAsync() ?? string.Empty;
-        return text.Contains(productName);
-    }
-
-    public async Task Checkout()
-    {
-        await CheckoutButton.ClickAsync();
-        await Page.WaitForURLAsync("**/checkout-step-one*");
-    }
-
-    public async Task ContinueShopping_Click()
-    {
-        await ContinueShopping.ClickAsync();
-        await Page.WaitForURLAsync("**/inventory*");
-    }
+    public async Task ContinueShoppingAsync() => await ContinueShoppingButton.ClickAsync();
 }

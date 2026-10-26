@@ -1,52 +1,44 @@
+using System.Globalization;
 using Microsoft.Playwright;
 
 namespace Quvantic.PlaywrightTests.Pages;
 
-public class CheckoutPage : BasePage
+public sealed record OrderSummary(decimal ItemTotal, decimal Tax, decimal Total);
+
+public sealed class CheckoutPage(IPage page) : BasePage(page)
 {
-    private ILocator FirstNameInput => Page.Locator("[data-test='firstName']");
-    private ILocator LastNameInput => Page.Locator("[data-test='lastName']");
-    private ILocator PostalCodeInput => Page.Locator("[data-test='postalCode']");
-    private ILocator ContinueButton => Page.Locator("[data-test='continue']");
-    private ILocator FinishButton => Page.Locator("[data-test='finish']");
-    private ILocator CompleteHeader => Page.Locator(".complete-header");
-    private ILocator TotalLabel => Page.Locator("[data-test='total-label']");
-    private ILocator ErrorMessage => Page.Locator("[data-test='error']");
+    private ILocator FirstNameInput => ByTestId("firstName");
+    private ILocator LastNameInput => ByTestId("lastName");
+    private ILocator PostalCodeInput => ByTestId("postalCode");
+    private ILocator ContinueButton => ByTestId("continue");
+    private ILocator FinishButton => ByTestId("finish");
+    private ILocator ItemTotalLabel => ByTestId("subtotal-label");
+    private ILocator TaxLabel => ByTestId("tax-label");
+    private ILocator TotalLabel => ByTestId("total-label");
 
-    public CheckoutPage(IPage page) : base(page) { }
+    public ILocator ErrorMessage => ByTestId("error");
+    public ILocator CompleteHeader => ByTestId("complete-header");
 
-    public async Task FillInfo(string firstName, string lastName, string postalCode)
+    public async Task FillCustomerInfoAsync(string firstName, string lastName, string postalCode)
     {
         await FirstNameInput.FillAsync(firstName);
         await LastNameInput.FillAsync(lastName);
         await PostalCodeInput.FillAsync(postalCode);
     }
 
-    public async Task Continue()
-    {
-        await ContinueButton.ClickAsync();
-    }
+    public async Task ContinueAsync() => await ContinueButton.ClickAsync();
 
-    public async Task Finish()
-    {
-        await FinishButton.ClickAsync();
-    }
+    public async Task FinishAsync() => await FinishButton.ClickAsync();
 
-    public async Task<string> GetTotal()
-    {
-        return await TotalLabel.TextContentAsync() ?? string.Empty;
-    }
+    public async Task<OrderSummary> GetOrderSummaryAsync() => new(
+        await ReadAmountAsync(ItemTotalLabel),
+        await ReadAmountAsync(TaxLabel),
+        await ReadAmountAsync(TotalLabel));
 
-    public async Task<bool> IsOrderComplete()
+    // Labels look like "Item total: $29.99".
+    private static async Task<decimal> ReadAmountAsync(ILocator label)
     {
-        await CompleteHeader.WaitForAsync(new LocatorWaitForOptions { Timeout = 5000 });
-        var text = await CompleteHeader.TextContentAsync() ?? string.Empty;
-        return text.Contains("Thank you");
-    }
-
-    public async Task<string> GetErrorMessage()
-    {
-        await ErrorMessage.WaitForAsync();
-        return await ErrorMessage.TextContentAsync() ?? string.Empty;
+        var text = await label.InnerTextAsync();
+        return decimal.Parse(text[(text.IndexOf('$') + 1)..], CultureInfo.InvariantCulture);
     }
 }

@@ -1,64 +1,56 @@
+using System.Globalization;
 using Microsoft.Playwright;
 
 namespace Quvantic.PlaywrightTests.Pages;
 
-public class InventoryPage : BasePage
+public enum SortOption
 {
-    private ILocator InventoryItems => Page.Locator(".inventory_item");
-    private ILocator CartBadge => Page.Locator(".shopping_cart_badge");
+    NameAscending,
+    NameDescending,
+    PriceAscending,
+    PriceDescending
+}
+
+public sealed class InventoryPage(IPage page) : BasePage(page)
+{
+    private ILocator ItemNames => Page.Locator(".inventory_item_name");
+    private ILocator ItemPrices => Page.Locator(".inventory_item_price");
     private ILocator CartLink => Page.Locator(".shopping_cart_link");
-    private ILocator SortDropdown => Page.Locator("[data-test='product-sort-container']");
-    private ILocator FirstItemName => Page.Locator(".inventory_item_name").First;
-    private ILocator FirstItemPrice => Page.Locator(".inventory_item_price").First;
+    private ILocator SortDropdown => ByTestId("product-sort-container");
 
-    public InventoryPage(IPage page) : base(page) { }
+    public ILocator Items => Page.Locator(".inventory_item");
+    public ILocator CartBadge => Page.Locator(".shopping_cart_badge");
 
-    public async Task WaitForLoad()
+    public async Task AddToCartAsync(string productName) =>
+        await ByTestId($"add-to-cart-{ToSlug(productName)}").ClickAsync();
+
+    public async Task RemoveFromCartAsync(string productName) =>
+        await ByTestId($"remove-{ToSlug(productName)}").ClickAsync();
+
+    public async Task OpenCartAsync() => await CartLink.ClickAsync();
+
+    public async Task SortByAsync(SortOption option)
     {
-        await InventoryItems.First.WaitForAsync();
-    }
-
-    public async Task<int> GetItemCount()
-    {
-        return await InventoryItems.CountAsync();
-    }
-
-    public async Task AddToCartByName(string productName)
-    {
-        var buttonId = $"add-to-cart-{productName.ToLower().Replace(" ", "-")}";
-        await Page.Locator($"[data-test='{buttonId}']").ClickAsync();
-    }
-
-    public async Task RemoveFromCartByName(string productName)
-    {
-        var buttonId = $"remove-{productName.ToLower().Replace(" ", "-")}";
-        await Page.Locator($"[data-test='{buttonId}']").ClickAsync();
-    }
-
-    public async Task<string> GetCartBadgeCount()
-    {
-        if (!await CartBadge.IsVisibleAsync()) return "0";
-        return await CartBadge.TextContentAsync() ?? "0";
-    }
-
-    public async Task OpenCart()
-    {
-        await CartLink.ClickAsync();
-        await Page.WaitForURLAsync("**/cart*");
-    }
-
-    public async Task SortBy(string value)
-    {
+        var value = option switch
+        {
+            SortOption.NameAscending => "az",
+            SortOption.NameDescending => "za",
+            SortOption.PriceAscending => "lohi",
+            SortOption.PriceDescending => "hilo",
+            _ => throw new ArgumentOutOfRangeException(nameof(option))
+        };
         await SortDropdown.SelectOptionAsync(value);
     }
 
-    public async Task<string> GetFirstProductName()
+    public async Task<IReadOnlyList<string>> GetProductNamesAsync() =>
+        await ItemNames.AllTextContentsAsync();
+
+    public async Task<IReadOnlyList<decimal>> GetProductPricesAsync()
     {
-        return await FirstItemName.TextContentAsync() ?? string.Empty;
+        var prices = await ItemPrices.AllTextContentsAsync();
+        return prices.Select(p => decimal.Parse(p.TrimStart('$'), CultureInfo.InvariantCulture)).ToList();
     }
 
-    public async Task<string> GetFirstProductPrice()
-    {
-        return await FirstItemPrice.TextContentAsync() ?? string.Empty;
-    }
+    private static string ToSlug(string productName) =>
+        productName.ToLowerInvariant().Replace(' ', '-');
 }

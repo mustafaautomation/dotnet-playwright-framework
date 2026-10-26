@@ -2,36 +2,20 @@ using Microsoft.Playwright;
 
 namespace Quvantic.PlaywrightTests.Pages;
 
-public class LoginPage : BasePage
+public sealed class LoginPage(IPage page) : BasePage(page)
 {
-    private ILocator UsernameInput => Page.Locator("[data-test='username']");
-    private ILocator PasswordInput => Page.Locator("[data-test='password']");
-    private ILocator LoginButton => Page.Locator("[data-test='login-button']");
-    private ILocator ErrorMessage => Page.Locator("[data-test='error']");
+    private ILocator UsernameInput => ByTestId("username");
+    private ILocator PasswordInput => ByTestId("password");
+    private ILocator LoginButton => ByTestId("login-button");
 
-    public LoginPage(IPage page) : base(page) { }
+    public ILocator ErrorMessage => ByTestId("error");
 
-    public async Task Navigate()
-    {
-        await Page.GotoAsync(Utils.TestConfig.BaseUrl);
-        await LoginButton.WaitForAsync();
-    }
+    public async Task GotoAsync() => await Page.GotoAsync("/");
 
-    public async Task Login(string username, string password)
+    public async Task LoginAsync(string username, string password)
     {
         await UsernameInput.FillAsync(username);
         await PasswordInput.FillAsync(password);
         await LoginButton.ClickAsync();
-    }
-
-    public async Task<string> GetErrorMessage()
-    {
-        await ErrorMessage.WaitForAsync();
-        return await ErrorMessage.TextContentAsync() ?? string.Empty;
-    }
-
-    public async Task<bool> IsErrorVisible()
-    {
-        return await ErrorMessage.IsVisibleAsync();
     }
 }

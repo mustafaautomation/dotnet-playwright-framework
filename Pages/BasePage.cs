@@ -1,31 +1,14 @@
 using Microsoft.Playwright;
-using Quvantic.PlaywrightTests.Utils;
 
 namespace Quvantic.PlaywrightTests.Pages;
 
-public abstract class BasePage
+/// <summary>
+/// Page objects expose user-level actions and the locators tests need for web-first
+/// assertions (<c>Expect(locator)</c>). They do not contain assertions themselves.
+/// </summary>
+public abstract class BasePage(IPage page)
 {
-    protected readonly IPage Page;
+    protected IPage Page { get; } = page;
 
-    protected BasePage(IPage page)
-    {
-        Page = page;
-        Page.SetDefaultTimeout(TestConfig.DefaultTimeout);
-    }
-
-    public async Task<string> GetCurrentUrl() => Page.Url;
-
-    public async Task WaitForUrl(string urlFragment)
-    {
-        await Page.WaitForURLAsync($"**/{urlFragment}**");
-    }
-
-    public async Task<byte[]> TakeScreenshot(string? name = null)
-    {
-        return await Page.ScreenshotAsync(new PageScreenshotOptions
-        {
-            FullPage = true,
-            Path = name != null ? $"screenshots/{name}.png" : null
-        });
-    }
+    protected ILocator ByTestId(string testId) => Page.Locator($"[data-test='{testId}']");
 }
