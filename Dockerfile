@@ -1,7 +1,7 @@
 # Official Playwright .NET image, pinned to the same version as the Microsoft.Playwright
 # package so the bundled browsers match the driver. It already contains the browsers and
 # their OS dependencies.
-FROM mcr.microsoft.com/playwright/dotnet:v1.64.1-noble
+FROM mcr.microsoft.com/playwright/dotnet:v1.65.1-noble
 
 # Make sure the .NET 10 runtime the project targets is present (the install script
 # skips it if the image already has it).
